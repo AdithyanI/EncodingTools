@@ -1,9 +1,9 @@
 import subprocess
 import os
+import sys
 
 def find_highres_source_file(subDirectoryFull):
    # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python     
-    print(subDirectoryFull)
     for file in os.listdir(subDirectoryFull):
       if file.endswith(".y4m") and file.find("1080p")!=-1:
         print("Found source file = " + file)
@@ -11,15 +11,13 @@ def find_highres_source_file(subDirectoryFull):
 
 def down_sampler():
   #https://stackoverflow.com/questions/973473/getting-a-list-of-all-subdirectories-in-the-current-directory
-  #cwd = os.getcwd()
-  cwd = "/home/adithyan/Innovation/RawVideo"
+  cwd = str(sys.argv[1])
   subDirectories = next(os.walk(cwd))[1]
-  print(subDirectories)
+  print "Found subfolders :", subDirectories
   downSampleResolutions = [
-                                                  [320, 180],
-                                                  [640, 360],
-                                                  [1280, 720]
-                                                ]
+                            [640, 360],
+                            [1280,720]
+                          ]
   
   for subDirectory in subDirectories:
     subDirectoryFull = cwd + "/" + subDirectory
@@ -43,4 +41,6 @@ def down_sampler():
       p1.wait()
 
 if __name__ == "__main__":
-	down_sampler()
+  print "Downsampling all videos present in subfolder of -", \
+  str(sys.argv[1])
+  down_sampler()
