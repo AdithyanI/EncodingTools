@@ -1,12 +1,17 @@
+from multiprocessing import cpu_count as cpu_count
 import subprocess
 import os
 import sys
 global encodingInfoSet
 
 encodingInfoSet = [
-                {"name":"360p","width":640,"height":360,"reprBitRates":[500] },
+                {"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
+                {"name":"720p","width":1280,"height":720,"reprBitRates":[1500,2400,4200] },
+                {"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,4800,8400] },
                 #{"name":"2160p","width":4096,"height":2160,"reprBitRate":[10000,16000,28000] },
                   ]
+processes = set()
+max_processes = cpu_count
 
 def find_highres_source_file(directory):
   # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python
@@ -42,11 +47,15 @@ def encode_all_bitrates(subDirectoryFull,video):
       outputFile = os.path.join(outputDirectory, outputFileName)
       create_directory(outputDirectory)
       cleanup_directory(outputDirectory)
-      bashCommand = aomEncoder + " -v --good --limit=1 --target-bitrate="+str(reprBitRate)\
+      bashCommand = aomEncoder + " --good --limit=1 --target-bitrate="+str(reprBitRate)\
                     +" -o " + outputFile + " " + inputFile
-      print(bashCommand)
-      p1 = subprocess.Popen(bashCommand, shell=True, cwd=outputDirectory)
-      p1.wait()
+
+      # Run multiple process in parallel but limit to max_processes
+      processes.add(subprocess.Popen(bashCommand, shell=True, cwd=outputDirectory))
+      if len(processes) >= max_processes:
+        os.wait()
+        processes.difference_update([
+            p for p in processes if p.poll() is not None])
 
 def encoding():
   #https://stackoverflow.com/questions/973473/getting-a-list-of-all-subdirectories-in-the-current-directory
