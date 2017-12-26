@@ -5,9 +5,10 @@ import sys
 global encodingInfoSet
 
 encodingInfoSet = [
-                {"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
-                {"name":"720p","width":1280,"height":720,"reprBitRates":[1500,2400,4200] },
-                {"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,4800,8400] },
+                {"name":"360p","width":640,"height":360,"reprBitRates":[500] },
+                #{"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
+                #{"name":"720p","width":1280,"height":720,"reprBitRates":[1500,2400,4200] },
+                #{"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,4800,8400] },
                 #{"name":"2160p","width":4096,"height":2160,"reprBitRate":[10000,16000,28000] },
                   ]
 processes = set()
@@ -26,7 +27,7 @@ def create_directory(directory):
 
 def cleanup_directory(directory):
   for item in os.listdir(directory):
-    if item.endswith(".webm") or item.endswith(".bin"):
+    if item.endswith(".webm") or item.endswith(".bin") or item == "log.txt":
       os.remove(os.path.join(directory,item))
 
 def encode_all_bitrates(subDirectoryFull,video):
@@ -47,15 +48,21 @@ def encode_all_bitrates(subDirectoryFull,video):
       outputFile = os.path.join(outputDirectory, outputFileName)
       create_directory(outputDirectory)
       cleanup_directory(outputDirectory)
-      bashCommand = aomEncoder + " --good --limit=1 --target-bitrate="+str(reprBitRate)\
-                    +" -o " + outputFile + " " + inputFile
+      bashCommand = aomEncoder + " --psnr --good --limit=2 --target-bitrate="+str(reprBitRate)\
+                    +" -o " + outputFile + " " + inputFile + " 2> log.txt"
 
       # Run multiple process in parallel but limit to max_processes
-      processes.add(subprocess.Popen(bashCommand, shell=True, cwd=outputDirectory))
+      process = subprocess.Popen(bashCommand,shell=True, cwd=outputDirectory)
+      processes.add(process)
+
       if len(processes) >= max_processes:
         os.wait()
-        processes.difference_update([
-            p for p in processes if p.poll() is not None])
+        processes.difference_update([p for p in processes if p.poll() is not None])
+
+def wait_for_all_to_complete():
+  for p in processes:
+    if p.poll() is None:
+      p.wait()
 
 def encoding():
   #https://stackoverflow.com/questions/973473/getting-a-list-of-all-subdirectories-in-the-current-directory
@@ -65,6 +72,8 @@ def encoding():
   for video in subDirectories:
     subDirectoryFull = os.path.join(inputVideosDirectory,video)
     encode_all_bitrates(subDirectoryFull, video)
+  wait_for_all_to_complete()
+  print("END")
 
 if __name__ == "__main__":
   if(len(sys.argv) < 4):
@@ -72,6 +81,5 @@ if __name__ == "__main__":
            </location/of/outputVideo> <encoder>"
     print "Exiting!..."
     sys.exit()
-
   print "Starting encoding of videos present in folder of -", str(sys.argv[1])
   encoding()
