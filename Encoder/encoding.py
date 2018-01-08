@@ -4,6 +4,8 @@ import os
 import sys
 global encodingInfoSet
 
+#python encoding.py ../../RawVideo/ ../../MultiRate/PartitionReuse/ ../../aomenc
+
 encodingInfoSet = [
                 {"name":"360p","width":640,"height":360,"reprBitRates":[500] },
                 #{"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
@@ -13,6 +15,7 @@ encodingInfoSet = [
                   ]
 processes = set()
 max_processes = cpu_count
+max_processes = 4
 
 def find_highres_source_file(directory):
   # https://stackoverflow.com/questions/3964681/find-all-files-in-a-directory-with-extension-txt-in-python
@@ -48,7 +51,7 @@ def encode_all_bitrates(subDirectoryFull,video):
       outputFile = os.path.join(outputDirectory, outputFileName)
       create_directory(outputDirectory)
       cleanup_directory(outputDirectory)
-      bashCommand = aomEncoder + " --psnr --good --limit=2 --target-bitrate="+str(reprBitRate)\
+      bashCommand = aomEncoder + " --psnr --good --limit=25 --kf-max-dist=25 --kf-min-dist=25 --passes=1 --target-bitrate="+str(reprBitRate)\
                     +" -o " + outputFile + " " + inputFile + " 2> log.txt"
 
       # Run multiple process in parallel but limit to max_processes
@@ -77,8 +80,7 @@ def encoding():
 
 if __name__ == "__main__":
   if(len(sys.argv) < 4):
-    print "Not enough arguments. Usuage : encoding.py </location/of/inputVideo> \
-           </location/of/outputVideo> <encoder>"
+    print "Not enough arguments. Usuage : encoding.py </location/of/inputVideo> </location/of/outputVideo> <encoder>"
     print "Exiting!..."
     sys.exit()
   print "Starting encoding of videos present in folder of -", str(sys.argv[1])
