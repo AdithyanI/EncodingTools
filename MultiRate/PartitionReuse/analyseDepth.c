@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #define MAX_DEP_REPR 10
+#define SB_SIZE 128
+#define MI_SIZE 4
 
 typedef struct  refAndDepEncoding_t{
   int totalCount;
@@ -11,7 +13,17 @@ typedef struct  refAndDepEncoding_t{
   int depBitRate[MAX_DEP_REPR];
   char* refBitRateDirectory;
   char* depBitRateDirectory[MAX_DEP_REPR];
-} refAndDepEncoding;
+  } refAndDepEncoding;
+
+typedef struct resolutionInformation_t{
+  char name[6];
+  int height;
+  int width;
+  int miRows;
+  int miCols;
+  int nrSBsInFrame;
+  } resolutionInformation;
+
 
 int find_maximum(int a[], int n) {
   int c, max, index; 
@@ -58,43 +70,66 @@ void print_ref_dep_encoding(const refAndDepEncoding* p_RefAndDepEncoding)
     }    
 }
 
-void extract_encoding_info(const char* path, refAndDepEncoding* p_RefAndDepEncoding)
+int extract_encoding_info(const char* path, refAndDepEncoding* p_RefAndDepEncoding)
 {
 	DIR *d;
   struct dirent *dir;
   d = opendir(path);
+  check(d, "Failed to open directory %s.", path); // Print fail message and jump to error.
   
-  if (d) {
-    int bitRates[MAX_DEP_REPR] = {0}; 
-    int subDirCount  = 0;
-    while ( (dir = readdir(d)) != NULL ) {
-      if (dir->d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0 ){
-        debug("Found Bitrate folder - %d", atoi(dir->d_name));
-        bitRates[subDirCount] = atoi(dir->d_name);
-        subDirCount++;
-      }
+  int bitRates[MAX_DEP_REPR] = {0};
+  int subDirCount  = 0;
+  while ( (dir = readdir(d)) != NULL ) {
+    if (dir->d_type == DT_DIR && strcmp(dir->d_name,".")!=0 && strcmp(dir->d_name,"..")!=0 ){
+      debug("Found Bitrate folder - %d", atoi(dir->d_name));
+      bitRates[subDirCount] = atoi(dir->d_name);
+      subDirCount++;
     }
-
-    int maxIndex = find_maximum(bitRates, subDirCount);
-    debug("Reference value - %d, Total count - %d", bitRates[maxIndex], subDirCount);
-
-    set_ref_dep_encoding(path, bitRates, subDirCount, maxIndex, p_RefAndDepEncoding);
-    print_ref_dep_encoding(p_RefAndDepEncoding);
-
-    closedir(d);
-	}
-  else {
-    log_warn("No subdirectories found in %s", path);
   }
+  check(subDirCount, "No subdirectories found in %s.", path); // Print fail message and jump to error.
+
+  int maxIndex = find_maximum(bitRates, subDirCount);
+  debug("Reference value - %d, Total count - %d", bitRates[maxIndex], subDirCount);
+  set_ref_dep_encoding(path, bitRates, subDirCount, maxIndex, p_RefAndDepEncoding);
+  print_ref_dep_encoding(p_RefAndDepEncoding);
+  closedir(d);
+  return 0;
+
+  error:
+    return -1;
 }
+
+void clean_encoding_info(refAndDepEncoding* p_RefAndDepEncoding)
+{
+    if (p_RefAndDepEncoding->refBitRateDirectory) free (p_RefAndDepEncoding->refBitRateDirectory);
+    for (int i = 0; i < p_RefAndDepEncoding->totalCount - 1; i++){
+      if (p_RefAndDepEncoding->depBitRateDirectory[i]) free(p_RefAndDepEncoding->depBitRateDirectory[i]);
+    }
+}
+
 
 
 int main(int argc, char* argv[])
 {
 	log_info("Invoking main function with argument count");
-	char* path = "/home/adithyan/Innovation/MultiRate/PartitionReuse/BlueSky/360p";
+
+	char* videoPath = "/home/adithyan/Innovation/MultiRate/PartitionReuse/BlueSky";
+  char* resolutionPath = "360p";
+  char* path;
+  path = malloc(1 + strlen(videoPath) + strlen(resolutionPath));
+  sprintf(path, "%s/%s", videoPath, resolutionPath);
+  log_info("Entering path - %s", path);
+
   refAndDepEncoding a_RefAndDepEncoding;
-  extract_encoding_info(path,  &a_RefAndDepEncoding);
+  int status = extract_encoding_info(path,  &a_RefAndDepEncoding);
+
+  check(status == 0, "Reading failed.");
+  clean_encoding_info(&a_RefAndDepEncoding);
+
   return 0;
+
+  error:
+    if(path) free(path);
+    return 1;
 }
 
