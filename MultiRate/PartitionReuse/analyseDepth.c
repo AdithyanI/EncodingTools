@@ -5,10 +5,10 @@
 #include <string.h>
 #include <math.h>
 
-#define MAX_DEP_REPR 10
+#define MAX_DEP_REPR 4
 #define SB_SIZE 128
 #define MI_SIZE 4
-#define FRAME_SIZE 15
+#define FRAME_SIZE 25
 
 typedef unsigned char UChar;
 
@@ -35,7 +35,7 @@ typedef struct  refAndDepEncoding_t{
   char* refBitRateDirectory;
   char* depBitRateDirectory[MAX_DEP_REPR];
   resolutionInformation* resInformation;
-  depthComparisonInfo depthComparisonInfoFrame[FRAME_SIZE];
+  depthComparisonInfo depthComparisonInfoFrame[MAX_DEP_REPR][FRAME_SIZE];
 } refAndDepEncoding;
 
 
@@ -55,7 +55,7 @@ int find_maximum(int a[], int n) {
 void set_ref_dep_encoding(const char* path, const int bitRates[], 
           const int subDirCount, const int maxIndex, refAndDepEncoding* p_RefAndDepEncoding)
 {
-   p_RefAndDepEncoding->totalCount = subDirCount;
+  p_RefAndDepEncoding->totalCount = subDirCount;
   int tmpDepCount = 0;
   char tmpLocationStr[300]; 
 
@@ -100,6 +100,7 @@ int extract_encoding_info(const char* path, refAndDepEncoding* p_RefAndDepEncodi
       subDirCount++;
     }
   }
+  
   check(subDirCount, "No subdirectories found in %s.", path); // Print fail message and jump to error.
 
   int maxIndex = find_maximum(bitRates, subDirCount);
@@ -185,13 +186,13 @@ depthComparisonInfo compare_depth_info(const UChar* refDepthInfo, const UChar* d
   return returnValue;
 }
 
-void print_depth_info_frame(const depthComparisonInfo* depthComparisonInfoFrame)
+void print_depth_info_frame(const depthComparisonInfo depthComparisonInfoFrame[MAX_DEP_REPR][FRAME_SIZE])
 {
   float greaterDepth;
   float lessThanGreaterDepth;
   for( int i=0; i<FRAME_SIZE; i++){
-    greaterDepth = depthComparisonInfoFrame[i].greaterDepth;
-    log_info("Equal or lesser = %f, Greater = %f", 1-greaterDepth, greaterDepth);
+    greaterDepth = depthComparisonInfoFrame[0][i].greaterDepth;
+    log_info("Frame number = %d, Equal or lesser = %f, Greater = %f", i, 1-greaterDepth, greaterDepth);
   }
 }
 
@@ -204,28 +205,29 @@ int analyse_depth_information(refAndDepEncoding* p_RefAndDepEncoding)
   FILE* mDataFileDep;
 
   mDataFileRef = fopen(p_RefAndDepEncoding->refBitRateDirectory, "rb"); // READ mode (read, binary)
-  mDataFileDep = fopen(p_RefAndDepEncoding->depBitRateDirectory[0], "rb"); // READ mode (read, binary)
-
   check(mDataFileRef != NULL, "Error opening file - %s",  p_RefAndDepEncoding->refBitRateDirectory);
-  check(mDataFileDep != NULL, "Error opening file - %s",  p_RefAndDepEncoding->depBitRateDirectory[0]);
-
   UChar* refDepthInfo = (UChar* )malloc(bytesToRead);
-  UChar* depDepthInfo = (UChar* )malloc(bytesToRead);
-
   check_mem(refDepthInfo);
+
+  UChar* depDepthInfo = (UChar* )malloc(bytesToRead);
   check_mem(depDepthInfo);
 
-  for (int i=0; i<FRAME_SIZE; i++){
-    int sizeReadRef = fread(refDepthInfo, sizeof(UChar), bytesToRead, mDataFileRef);
-    int sizeReadDep = fread(depDepthInfo, sizeof(UChar), bytesToRead, mDataFileDep);
-    p_RefAndDepEncoding->depthComparisonInfoFrame[i] = compare_depth_info(refDepthInfo, depDepthInfo, bytesToRead);
+  for(int j=0; j<1; j++ ){
+    mDataFileDep = fopen(p_RefAndDepEncoding->depBitRateDirectory[j], "rb"); // READ mode (read, binary)
+    check(mDataFileDep != NULL, "Error opening file - %s",  p_RefAndDepEncoding->depBitRateDirectory[0]);
+    for (int i=0; i<FRAME_SIZE; i++){
+      int sizeReadRef = fread(refDepthInfo, sizeof(UChar), bytesToRead, mDataFileRef);
+      int sizeReadDep = fread(depDepthInfo, sizeof(UChar), bytesToRead, mDataFileDep);
+      p_RefAndDepEncoding->depthComparisonInfoFrame[j][i] = compare_depth_info(refDepthInfo, depDepthInfo, bytesToRead);
+    }
+    free(depDepthInfo);
+    fclose(mDataFileDep);
   }
-
+  
   print_depth_info_frame(p_RefAndDepEncoding->depthComparisonInfoFrame);
   free(refDepthInfo);
-  free(depDepthInfo);
   fclose(mDataFileRef);
-  fclose(mDataFileDep);
+  
   return 0;
 
   error:
