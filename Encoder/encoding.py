@@ -7,8 +7,8 @@ global encodingInfoSet
 #python encoding.py /home/adithyan/Innovation/RawVideo/ /home/adithyan/Innovation/MultiRate/PartitionReuse/ /home/adithyan/Innovation/aomenc
 
 encodingInfoSet = [
-                {"name":"360p","width":640,"height":360,"reprBitRates":[500, 1400] },
-                #{"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
+                #{"name":"360p","width":640,"height":360,"reprBitRates":[500, 1400] },
+                {"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
                 #{"name":"720p","width":1280,"height":720,"reprBitRates":[1500,2400,4200] },
                 #{"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,4800,8400] },
                 #{"name":"2160p","width":4096,"height":2160,"reprBitRate":[10000,16000,28000] },
@@ -51,7 +51,7 @@ def encode_all_bitrates(subDirectoryFull,video):
       outputFile = os.path.join(outputDirectory, outputFileName)
       create_directory(outputDirectory)
       cleanup_directory(outputDirectory)
-      bashCommand = aomEncoder + " --psnr --good --limit=25 --kf-max-dist=25 --kf-min-dist=25 --passes=1 --target-bitrate="+str(reprBitRate)\
+      bashCommand = aomEncoder + " --psnr --good --limit=125 --kf-max-dist=25 --kf-min-dist=25 --passes=1 --target-bitrate="+str(reprBitRate)\
                     +" -o " + outputFile + " " + inputFile + " 2> log.txt"
 
       print(bashCommand)
