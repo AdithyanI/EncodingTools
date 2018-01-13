@@ -8,7 +8,7 @@
 #define MAX_DEP_REPR 4
 #define SB_SIZE 128
 #define MI_SIZE 4
-#define FRAME_SIZE 25
+#define FRAME_SIZE 10
 
 typedef unsigned char UChar;
 
@@ -38,11 +38,10 @@ typedef struct  refAndDepEncoding_t{
   depthComparisonInfo depthComparisonInfoFrame[MAX_DEP_REPR][FRAME_SIZE];
 } refAndDepEncoding;
 
-
 int find_maximum(int a[], int n) {
-  int c, max, index; 
+  int c, max, index;
   max = a[0];
-  index = 0; 
+  index = 0;
   for (c = 1; c < n; c++) {
     if (a[c] > max) {
        index = c;
@@ -52,36 +51,47 @@ int find_maximum(int a[], int n) {
    return index;
 }
 
-void set_ref_dep_encoding(const char* path, const int bitRates[], 
+int set_ref_dep_encoding(const char* path, const int bitRates[],
           const int subDirCount, const int maxIndex, refAndDepEncoding* p_RefAndDepEncoding)
 {
   p_RefAndDepEncoding->totalCount = subDirCount;
   int tmpDepCount = 0;
-  char tmpLocationStr[300]; 
+  char* tmpLocationStr;
 
   for (int i = 0; i < subDirCount; i++) {
+    tmpLocationStr = malloc(1 + strlen(path) + 10 +16); // 1 + strlen(path) + 140000 + analysisData.bin
+    check_mem(tmpLocationStr);
     sprintf(tmpLocationStr, "%s/%d/%s", path, bitRates[i],"analysisData.bin");
+
     if ( i == maxIndex){
         p_RefAndDepEncoding->refBitRate = bitRates[i];
-        p_RefAndDepEncoding->refBitRateDirectory  = strdup(tmpLocationStr) ;         
+        p_RefAndDepEncoding->refBitRateDirectory  = strdup(tmpLocationStr) ;
     }
     else{
         p_RefAndDepEncoding->depBitRate[tmpDepCount] = bitRates[i];
         p_RefAndDepEncoding->depBitRateDirectory[tmpDepCount]  =  strdup(tmpLocationStr);
-        tmpDepCount++;         
+        tmpDepCount++;
       }
+
+    free(tmpLocationStr);
   }
+
+  return 0;
+
+  error:
+    if(tmpLocationStr) free(tmpLocationStr);
+    return -1;
 }
 
 void print_ref_dep_encoding(const refAndDepEncoding* p_RefAndDepEncoding)
 {
     debug("Reference: Bitrate - %d, Directory - %s", p_RefAndDepEncoding->refBitRate,
-                  p_RefAndDepEncoding->refBitRateDirectory);         
+                  p_RefAndDepEncoding->refBitRateDirectory);
 
     for (int i = 0; i < p_RefAndDepEncoding->totalCount - 1; i++){
       debug("Depedent: Bitrate - %d, Directory - %s", p_RefAndDepEncoding->depBitRate[i] ,
-                    p_RefAndDepEncoding->depBitRateDirectory[i]);         
-    }    
+                    p_RefAndDepEncoding->depBitRateDirectory[i]);
+    }
 }
 
 int extract_encoding_info(const char* path, refAndDepEncoding* p_RefAndDepEncoding)
@@ -90,7 +100,7 @@ int extract_encoding_info(const char* path, refAndDepEncoding* p_RefAndDepEncodi
   struct dirent *dir;
   d = opendir(path);
   check(d, "Failed to open directory %s.", path); // Print fail message and jump to error.
-  
+
   int bitRates[MAX_DEP_REPR] = {0};
   int subDirCount  = 0;
   while ( (dir = readdir(d)) != NULL ) {
@@ -100,7 +110,7 @@ int extract_encoding_info(const char* path, refAndDepEncoding* p_RefAndDepEncodi
       subDirCount++;
     }
   }
-  
+
   check(subDirCount, "No subdirectories found in %s.", path); // Print fail message and jump to error.
 
   int maxIndex = find_maximum(bitRates, subDirCount);
@@ -186,55 +196,126 @@ depthComparisonInfo compare_depth_info(const UChar* refDepthInfo, const UChar* d
   return returnValue;
 }
 
-void print_depth_info_frame(const depthComparisonInfo depthComparisonInfoFrame[MAX_DEP_REPR][FRAME_SIZE])
+void print_depth_info_frame(refAndDepEncoding* p_RefAndDepEncoding)
 {
+  int nrDepRepr = p_RefAndDepEncoding->totalCount - 1;
+
   float greaterDepth;
   float lessThanGreaterDepth;
-  for( int i=0; i<FRAME_SIZE; i++){
-    greaterDepth = depthComparisonInfoFrame[0][i].greaterDepth;
-    log_info("Frame number = %d, Equal or lesser = %f, Greater = %f", i, 1-greaterDepth, greaterDepth);
+  for(int j=0; j<nrDepRepr; j++ ){
+    debug("Print depth compraison for %s.", p_RefAndDepEncoding->depBitRateDirectory[j]);
+    for( int i=0; i<FRAME_SIZE; i++){
+      greaterDepth = p_RefAndDepEncoding->depthComparisonInfoFrame[j][i].greaterDepth;
+      log_info("Frame number = %d, Equal or lesser = %f, Greater = %f", i, 1-greaterDepth, greaterDepth);
+    }
   }
 }
 
+int save_avg_depth_info_frame(refAndDepEncoding* p_RefAndDepEncoding)
+{
+  int nrDepRepr = p_RefAndDepEncoding->totalCount - 1;
+
+  float greaterDepth = 0;
+  float equalDepth = 0;
+  float avgGreaterDepth = 0;
+  float avgEqualDepth = 0;
+  float avgLesserDepth = 0;
+  FILE* mDepthInfoFile;
+
+  char* tmpLocationStr;
+  int tmpCutOffLength;
+
+  for(int j=0; j<nrDepRepr; j++ ){
+
+    greaterDepth = 0;
+    equalDepth = 0;
+
+    // Open file for writing.
+    tmpCutOffLength = strlen(p_RefAndDepEncoding->depBitRateDirectory[j])-16;
+
+    tmpLocationStr = malloc(1 + tmpCutOffLength + 19); // 1 + strlen(path) + analysisData.bin
+    check_mem(tmpLocationStr);
+
+    strncpy(tmpLocationStr, p_RefAndDepEncoding->depBitRateDirectory[j], tmpCutOffLength);
+    tmpLocationStr[tmpCutOffLength] = '\0';
+    strcat(tmpLocationStr, "depthComparison.csv");
+
+    for( int i=0; i<FRAME_SIZE; i++){
+      greaterDepth += p_RefAndDepEncoding->depthComparisonInfoFrame[j][i].greaterDepth;
+      equalDepth += p_RefAndDepEncoding->depthComparisonInfoFrame[j][i].greaterDepth;
+    }
+
+    avgGreaterDepth = greaterDepth/FRAME_SIZE;
+    avgEqualDepth = equalDepth/FRAME_SIZE;
+    avgLesserDepth = 1 - (avgGreaterDepth + avgEqualDepth);
+    debug("%s-%d, Greater=%f, Equal=%f, Lesser=%f", p_RefAndDepEncoding->resInformation->name, p_RefAndDepEncoding->depBitRate[j], avgGreaterDepth, avgEqualDepth, avgLesserDepth);
+
+    mDepthInfoFile = fopen(tmpLocationStr, "w"); // Write mode (delete pre existing)
+    check(mDepthInfoFile != NULL, "Error opening file - %s",  tmpLocationStr);
+    debug("Saving info in %s", tmpLocationStr);
+    fprintf(mDepthInfoFile, "%s,%s,%s\n", "greater", "equal", "lesser");
+    fprintf(mDepthInfoFile, "%f,%f,%f\n", avgGreaterDepth, avgEqualDepth,avgLesserDepth);
+
+    if(mDepthInfoFile) fclose(mDepthInfoFile);
+    if(tmpLocationStr) free(tmpLocationStr);
+  }
+
+  return 0;
+
+  error:
+    if(tmpLocationStr) free(tmpLocationStr);
+    if(mDepthInfoFile) fclose(mDepthInfoFile);
+    return -1;
+}
+
+
+
 int analyse_depth_information(refAndDepEncoding* p_RefAndDepEncoding)
 {
+  int nrDepRepr = p_RefAndDepEncoding->totalCount - 1;
   int bytesToRead;
   bytesToRead = p_RefAndDepEncoding->resInformation->nrDepthInfoInFrame;
 
   FILE* mDataFileRef;
-  FILE* mDataFileDep;
-
   mDataFileRef = fopen(p_RefAndDepEncoding->refBitRateDirectory, "rb"); // READ mode (read, binary)
   check(mDataFileRef != NULL, "Error opening file - %s",  p_RefAndDepEncoding->refBitRateDirectory);
-  UChar* refDepthInfo = (UChar* )malloc(bytesToRead);
-  check_mem(refDepthInfo);
+  UChar* refDepthInfoFrame = (UChar* )malloc(bytesToRead);
+  check_mem(refDepthInfoFrame);
 
-  UChar* depDepthInfo = (UChar* )malloc(bytesToRead);
-  check_mem(depDepthInfo);
-
-  for(int j=0; j<1; j++ ){
-    mDataFileDep = fopen(p_RefAndDepEncoding->depBitRateDirectory[j], "rb"); // READ mode (read, binary)
-    check(mDataFileDep != NULL, "Error opening file - %s",  p_RefAndDepEncoding->depBitRateDirectory[0]);
-    for (int i=0; i<FRAME_SIZE; i++){
-      int sizeReadRef = fread(refDepthInfo, sizeof(UChar), bytesToRead, mDataFileRef);
-      int sizeReadDep = fread(depDepthInfo, sizeof(UChar), bytesToRead, mDataFileDep);
-      p_RefAndDepEncoding->depthComparisonInfoFrame[j][i] = compare_depth_info(refDepthInfo, depDepthInfo, bytesToRead);
-    }
-    free(depDepthInfo);
-    fclose(mDataFileDep);
+  FILE** mDataFileDep = malloc(sizeof(FILE*) * nrDepRepr);
+  for(int j=0; j<nrDepRepr; j++ ){
+    mDataFileDep[j] = fopen(p_RefAndDepEncoding->depBitRateDirectory[j], "rb"); // READ mode (read, binary)
+    check(mDataFileDep[j] != NULL, "Error opening file - %s",  p_RefAndDepEncoding->depBitRateDirectory[j]);
   }
-  
-  print_depth_info_frame(p_RefAndDepEncoding->depthComparisonInfoFrame);
-  free(refDepthInfo);
+  UChar* depDepthInfoFrame = (UChar* )malloc(bytesToRead);
+  check_mem(depDepthInfoFrame);
+
+  for (int i=0; i<FRAME_SIZE; i++){
+    int sizeReadRef = fread(refDepthInfoFrame, sizeof(UChar), bytesToRead, mDataFileRef);
+    for(int j=0; j<nrDepRepr; j++ ){
+      int sizeReadDep = fread(depDepthInfoFrame, sizeof(UChar), bytesToRead, mDataFileDep[j]);
+      p_RefAndDepEncoding->depthComparisonInfoFrame[j][i] = compare_depth_info(refDepthInfoFrame, depDepthInfoFrame, bytesToRead);
+    }
+  }
+
+  //print_depth_info_frame(p_RefAndDepEncoding);
+  save_avg_depth_info_frame(p_RefAndDepEncoding);
+  free(refDepthInfoFrame);
   fclose(mDataFileRef);
-  
+  free(depDepthInfoFrame);
+
+  for(int j=0; j<nrDepRepr; j++ ){
+    fclose(mDataFileDep[j]);
+  }
   return 0;
 
   error:
-    if(refDepthInfo) free(refDepthInfo);
-    if(depDepthInfo) free(depDepthInfo);
+    if(refDepthInfoFrame) free(refDepthInfoFrame);
+    if(depDepthInfoFrame) free(depDepthInfoFrame);
     if(mDataFileRef) fclose(mDataFileRef);
-    if(mDataFileDep) fclose(mDataFileDep);
+    for(int j=0; j<nrDepRepr; j++ ){
+      if(mDataFileDep[j]) fclose(mDataFileDep[j]);
+    }
     return -1;
 }
 
@@ -249,28 +330,40 @@ int main(int argc, char* argv[])
   set_resolution_information(&resInfo720p, 720);
   set_resolution_information(&resInfo1080p, 1080);
 
-	char* videoPath = "/home/adithyan/Innovation/MultiRate/PartitionReuse/BlueSky/";
-  char* resolutionPath = "360p";
+  char* videoPathArray[] = {"/home/adithyan/Innovation/MultiRate/PartitionReuse/BlueSky/",
+                                            "/home/adithyan/Innovation/MultiRate/PartitionReuse/Station2/"};
+  char* resolutionPathArray[] = {"360p"};
 
+
+  int videoLength = sizeof(videoPathArray)/sizeof(videoPathArray[0]);
+  int resolutionLength = sizeof(resolutionPathArray)/sizeof(resolutionPathArray[0]);
   char* path;
-  path = malloc(1 + strlen(videoPath) + strlen(resolutionPath));
-  strcpy(path, videoPath);
-  strcat(path, resolutionPath);
-  log_info("Analysing folder location - %s", path);
 
-  refAndDepEncoding a_RefAndDepEncoding;
-  status = extract_encoding_info(path,  &a_RefAndDepEncoding);
-  check(status == 0, "Extracting encoding failed for %s.", path);
-  a_RefAndDepEncoding.resInformation = &resInfo360p;
+  debug("Video length - %d", videoLength);
+  debug("Resolution length - %d", resolutionLength);
 
-  status = analyse_depth_information(&a_RefAndDepEncoding);
-  check(status == 0, "Analysing depth information failed for %s.", path)
+  for (int j=0; j<videoLength; j++){
+    char* videoPath = videoPathArray[j];
+    for (int i=0; i<resolutionLength; i++){
+      char* resolutionPath = resolutionPathArray[i];
+      path = malloc(1 + strlen(videoPath) + strlen(resolutionPath));
+      check_mem(path);
+      strcpy(path, videoPath);
+      strcat(path, resolutionPath);
+      log_info("Analysing folder location - %s", path);
 
-  clean_encoding_info(&a_RefAndDepEncoding);
+      refAndDepEncoding a_RefAndDepEncoding;
+      status = extract_encoding_info(path,  &a_RefAndDepEncoding);
+      check(status == 0, "Extracting encoding failed for %s.", path);
+      a_RefAndDepEncoding.resInformation = &resInfo360p;
 
-  if(path) free(path);
+      status = analyse_depth_information(&a_RefAndDepEncoding);
+      check(status == 0, "Analysing depth information failed for %s.", path);
+      clean_encoding_info(&a_RefAndDepEncoding);
+      if(path) free(path);
+    }
+  }
   return 0;
-
   error:
     if(path) free(path);
     return -1;
