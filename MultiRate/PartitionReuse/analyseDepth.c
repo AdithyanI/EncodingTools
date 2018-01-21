@@ -354,14 +354,17 @@ int main(int argc, char* argv[])
       status = extract_encoding_info(path,  &a_RefAndDepEncoding);
       check(status == 0, "Extracting encoding failed for %s.", path);
 
-      if (strcmp(resolutionPath, "360p")){
+      if (strcmp(resolutionPath, "360p") == 0){
+        log_info("360p successuul. %s.", resolutionPath);
         a_RefAndDepEncoding.resInformation = &resInfo360p;
       }
-      else if (strcmp(resolutionPath, "720p")){
+      else if (strcmp(resolutionPath, "720p") == 0){
+        log_info("720p successuul. %s.", resolutionPath);
         a_RefAndDepEncoding.resInformation = &resInfo720p;
       }
-      else if (strcmp(resolutionPath, "1080p")){
-        a_RefAndDepEncoding.resInformation = &resInfo720p;
+      else if (strcmp(resolutionPath, "1080p") == 0){
+        log_info("1080p successuul. %s.", resolutionPath);
+        a_RefAndDepEncoding.resInformation = &resInfo1080p;
       }
       else{
         log_err("Unknow resolution path - %s", resolutionPath);
