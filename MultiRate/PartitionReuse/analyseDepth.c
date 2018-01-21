@@ -8,7 +8,7 @@
 #define MAX_DEP_REPR 4
 #define SB_SIZE 128
 #define MI_SIZE 4
-#define FRAME_SIZE 10
+#define FRAME_SIZE 125
 
 typedef unsigned char UChar;
 
@@ -330,9 +330,8 @@ int main(int argc, char* argv[])
   set_resolution_information(&resInfo720p, 720);
   set_resolution_information(&resInfo1080p, 1080);
 
-  char* videoPathArray[] = {"/home/adithyan/Innovation/MultiRate/PartitionReuse/Modified/BlueSky/"};
-  char* resolutionPathArray[] = {"360p", "720p"};
-
+  char* videoPathArray[] = {"/home/adithyan_i4internet/Innovation/MultiRate/PartitionReuse/BlueSky/"};
+  char* resolutionPathArray[] = {"360p", "720p", "1080p"};
 
   int videoLength = sizeof(videoPathArray)/sizeof(videoPathArray[0]);
   int resolutionLength = sizeof(resolutionPathArray)/sizeof(resolutionPathArray[0]);

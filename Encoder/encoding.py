@@ -7,10 +7,12 @@ global encodingInfoSet
 #python encoding.py /home/adithyan/Innovation/RawVideo/ /home/adithyan/Innovation/MultiRate/PartitionReuse/ /home/adithyan/Innovation/aomenc
 
 encodingInfoSet = [
-                #{"name":"360p","width":640,"height":360,"reprBitRates":[500, 1400] },
-                {"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
+                #{"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
                 #{"name":"720p","width":1280,"height":720,"reprBitRates":[1500,2400,4200] },
-                #{"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,4800,8400] },
+                #{"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,4800,8400] }
+                #{"name":"360p","width":640,"height":360,"reprBitRates":[650,1100] },
+                #{"name":"720p","width":1280,"height":720,"reprBitRates":[1950,3300] }
+                {"name":"1080p","width":1920,"height":1080,"reprBitRates":[3900,6600] }
                 #{"name":"2160p","width":4096,"height":2160,"reprBitRate":[10000,16000,28000] },
                   ]
 processes = set()
@@ -54,7 +56,7 @@ def encode_all_bitrates(subDirectoryFull,video):
       bashCommand = aomEncoder + " --psnr --good --limit=125 --kf-max-dist=25 --kf-min-dist=25 --passes=1 --target-bitrate="+str(reprBitRate)\
                     +" -o " + outputFile + " " + inputFile + " 2> log.txt"
 
-      print(bashCommand)
+      # print(bashCommand)
       # Run multiple process in parallel but limit to max_processes
       process = subprocess.Popen(bashCommand,shell=True, cwd=outputDirectory)
       processes.add(process)
