@@ -330,9 +330,8 @@ int main(int argc, char* argv[])
   set_resolution_information(&resInfo720p, 720);
   set_resolution_information(&resInfo1080p, 1080);
 
-  char* videoPathArray[] = {"/home/adithyan/Innovation/MultiRate/PartitionReuse/BlueSky/",
-                                            "/home/adithyan/Innovation/MultiRate/PartitionReuse/Station2/"};
-  char* resolutionPathArray[] = {"360p"};
+  char* videoPathArray[] = {"/home/adithyan/Innovation/MultiRate/PartitionReuse/Modified/BlueSky/"};
+  char* resolutionPathArray[] = {"360p", "720p"};
 
 
   int videoLength = sizeof(videoPathArray)/sizeof(videoPathArray[0]);
@@ -355,7 +354,19 @@ int main(int argc, char* argv[])
       refAndDepEncoding a_RefAndDepEncoding;
       status = extract_encoding_info(path,  &a_RefAndDepEncoding);
       check(status == 0, "Extracting encoding failed for %s.", path);
-      a_RefAndDepEncoding.resInformation = &resInfo360p;
+
+      if (strcmp(resolutionPath, "360p")){
+        a_RefAndDepEncoding.resInformation = &resInfo360p;
+      }
+      else if (strcmp(resolutionPath, "720p")){
+        a_RefAndDepEncoding.resInformation = &resInfo720p;
+      }
+      else if (strcmp(resolutionPath, "1080p")){
+        a_RefAndDepEncoding.resInformation = &resInfo720p;
+      }
+      else{
+        log_err("Unknow resolution path - %s", resolutionPath);
+      }
 
       status = analyse_depth_information(&a_RefAndDepEncoding);
       check(status == 0, "Analysing depth information failed for %s.", path);
