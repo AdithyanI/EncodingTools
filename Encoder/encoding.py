@@ -7,12 +7,9 @@ global encodingInfoSet
 #python encoding.py /home/adithyan/Innovation/RawVideo/ /home/adithyan/Innovation/MultiRate/PartitionReuse/ /home/adithyan/Innovation/aomenc
 
 encodingInfoSet = [
-                #{"name":"360p","width":640,"height":360,"reprBitRates":[500,800,1400] },
-                #{"name":"720p","width":1280,"height":720,"reprBitRates":[1500,2400,4200] },
-                #{"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,4800,8400] }
-                #{"name":"360p","width":640,"height":360,"reprBitRates":[650,1100] },
-                #{"name":"720p","width":1280,"height":720,"reprBitRates":[1950,3300] }
-                {"name":"1080p","width":1920,"height":1080,"reprBitRates":[3900,6600] }
+                #{"name":"360p","width":640,"height":360,"reprBitRates":[500,650,800,1100,1400] },
+                #{"name":"720p","width":1280,"height":720,"reprBitRates":[1500,1950,2400,3300,4200] },
+                #{"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,3900,4800,6600,8400] }
                 #{"name":"2160p","width":4096,"height":2160,"reprBitRate":[10000,16000,28000] },
                   ]
 processes = set()
