@@ -41,19 +41,27 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
     videoDirectoryUnmodified = os.path.join(subDirectoryFullUnmodified, encodingInfo["name"])
     videoDirectoryModified = os.path.join(subDirectoryFullModified, encodingInfo["name"])
 
+    unmodifiedBitRate = []
+    unmodifiedEncodingTime = []
+    unmodifiedPSNR = []
+
     for reprBitRate in encodingInfo["reprBitRates"]:
-      print "Encoding",video,"-",encodingInfo["name"],"-",reprBitRate,"kpbs"
+      print video,"-",encodingInfo["name"],"-",reprBitRate,"kpbs"
 
       unmodifiedFile = os.path.join(videoDirectoryUnmodified,str(reprBitRate),"log.txt")
       modifiedFile = os.path.join(videoDirectoryModified,str(reprBitRate),"log.txt")
-      
-      print subprocess.check_output(['tail', '-n', '-2', unmodifiedFile])
-      print subprocess.check_output(['tail', '-n', '-2', modifiedFile])
 
-      #print "UNMODIFIED ----", unmodified
-      #print "MODIFIED ----", modified
-      #create_directory(outputDirectory)
-      #cleanup_directory(outputDirectory)
+      lastTwoLine = subprocess.check_output(['tail', '-n', '2', unmodifiedFile])
+      lastLine = lastTwoLine.split('\x1b[K')[3]
+      lastButOneLine = lastTwoLine.split('\x1b[K')[2]
+
+      unmodifiedBitRate.append(lastLine.split()[4])
+      unmodifiedEncodingTime.append(lastButOneLine.split()[6][:-3])
+      unmodifiedPSNR.append(lastButOneLine.split()[7])
+
+    print unmodifiedBitRate
+    print unmodifiedEncodingTime
+    print unmodifiedPSNR
 
 def wait_for_all_to_complete():
   for p in processes:
@@ -66,7 +74,7 @@ def main():
   modifiedVideosDirectory = str(sys.argv[2])
   subDirectories = next(os.walk(unmodifiedVideosDirectory))[1]
   print "Found subfolders in unmodified :", subDirectories
-  for video in [subDirectories[0]]:
+  for video in subDirectories:
     subDirectoryFullUnmodified = os.path.join(unmodifiedVideosDirectory, video)
     subDirectoryFullModified = os.path.join(modifiedVideosDirectory, video)
     if not os.path.exists(subDirectoryFullModified):
