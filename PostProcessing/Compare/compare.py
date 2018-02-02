@@ -45,6 +45,8 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
     unmodifiedEncodingTime = []
     unmodifiedPSNR = []
 
+    unmodifiedStatistic = {}
+
     for reprBitRate in encodingInfo["reprBitRates"]:
       print video,"-",encodingInfo["name"],"-",reprBitRate,"kpbs"
 
@@ -55,13 +57,12 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
       lastLine = lastTwoLine.split('\x1b[K')[3]
       lastButOneLine = lastTwoLine.split('\x1b[K')[2]
 
-      unmodifiedBitRate.append(lastLine.split()[4])
-      unmodifiedEncodingTime.append(lastButOneLine.split()[6][:-3])
-      unmodifiedPSNR.append(lastButOneLine.split()[7])
+      print lastTwoLine
+      unmodifiedStatistic.setdefault("PSNR", []).append(lastLine.split()[4])
+      unmodifiedStatistic.setdefault("bitRate", []).append(lastButOneLine.split()[6][:-3])
+      unmodifiedStatistic.setdefault("encoding", []).append(lastButOneLine.split()[7])
 
-    print unmodifiedBitRate
-    print unmodifiedEncodingTime
-    print unmodifiedPSNR
+    print unmodifiedStatistic
 
 def wait_for_all_to_complete():
   for p in processes:
