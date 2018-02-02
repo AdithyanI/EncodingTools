@@ -34,6 +34,12 @@ def cleanup_directory(directory):
     if item.endswith(".webm") or item.endswith(".bin") or item == "log.txt":
       os.remove(os.path.join(directory,item))
 
+def extract_statistic(fileName):
+  lastTwoLine = subprocess.check_output(['tail', '-n', '2', fileName])
+  lastLine = lastTwoLine.split('\x1b[K')[3]
+  lastButOneLine = lastTwoLine.split('\x1b[K')[2]
+  return {'PSNR':lastLine.split()[4], 'bitRate':lastButOneLine.split()[6][:-3],'encodingTime':lastButOneLine.split()[7]}
+
 def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
   global encodingInfoSet
 
@@ -41,28 +47,26 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
     videoDirectoryUnmodified = os.path.join(subDirectoryFullUnmodified, encodingInfo["name"])
     videoDirectoryModified = os.path.join(subDirectoryFullModified, encodingInfo["name"])
 
-    unmodifiedBitRate = []
-    unmodifiedEncodingTime = []
-    unmodifiedPSNR = []
-
     unmodifiedStatistic = {}
+    modifiedStatistic = {}
 
     for reprBitRate in encodingInfo["reprBitRates"]:
       print video,"-",encodingInfo["name"],"-",reprBitRate,"kpbs"
 
       unmodifiedFile = os.path.join(videoDirectoryUnmodified,str(reprBitRate),"log.txt")
+      extractedStatistic = extract_statistic(unmodifiedFile)
+      unmodifiedStatistic.setdefault("PSNR", []).append(extractedStatistic["PSNR"])
+      unmodifiedStatistic.setdefault("bitRate", []).append(extractedStatistic["bitRate"])
+      unmodifiedStatistic.setdefault("encodingTime", []).append(extractedStatistic["encodingTime"])
+
       modifiedFile = os.path.join(videoDirectoryModified,str(reprBitRate),"log.txt")
-
-      lastTwoLine = subprocess.check_output(['tail', '-n', '2', unmodifiedFile])
-      lastLine = lastTwoLine.split('\x1b[K')[3]
-      lastButOneLine = lastTwoLine.split('\x1b[K')[2]
-
-      print lastTwoLine
-      unmodifiedStatistic.setdefault("PSNR", []).append(lastLine.split()[4])
-      unmodifiedStatistic.setdefault("bitRate", []).append(lastButOneLine.split()[6][:-3])
-      unmodifiedStatistic.setdefault("encoding", []).append(lastButOneLine.split()[7])
+      extractedStatistic = extract_statistic(modifiedFile)
+      modifiedStatistic.setdefault("PSNR", []).append(extractedStatistic["PSNR"])
+      modifiedStatistic.setdefault("bitRate", []).append(extractedStatistic["bitRate"])
+      modifiedStatistic.setdefault("encodingTime", []).append(extractedStatistic["encodingTime"])
 
     print unmodifiedStatistic
+    print modifiedStatistic
 
 def wait_for_all_to_complete():
   for p in processes:
