@@ -44,6 +44,109 @@ def extract_statistic(fileName):
   return {'PSNR':lastLine.split()[4], 'bitRate':lastButOneLine.split()[6][:-3],'encodingTime':lastButOneLine.split()[7]}
 
 
+def bdsnr(unmodifiedStatistic, modifiedStatistic):
+  """
+  BJONTEGAARD    Bjontegaard metric calculation
+  Bjontegaard's metric allows to compute the average gain in psnr between two
+  rate-distortion curves [1].
+  rate1,psnr1 - RD points for curve 1
+  rate2,psnr2 - RD points for curve 2
+
+  returns the calculated Bjontegaard metric 'dsnr'
+
+  code adapted from code written by : (c) 2010 Giuseppe Valenzise
+  http://www.mathworks.com/matlabcentral/fileexchange/27798-bjontegaard-metric/content/bjontegaard.m
+  """
+  # pylint: disable=too-many-locals
+  # numpy seems to do tricks with its exports.
+  # pylint: disable=no-member
+  # map() is recommended against.
+  # pylint: disable=bad-builtin
+  rate1 = np.array(map(float,unmodifiedStatistic["bitRate"]))
+  psnr1 = np.array(map(float,unmodifiedStatistic["PSNR"]))
+  rate2 = np.array(map(float,modifiedStatistic["bitRate"]))
+  psnr2 = np.array(map(float,modifiedStatistic["PSNR"]))
+
+  log_rate1 = map(math.log, rate1)
+  log_rate2 = map(math.log, rate2)
+
+  # Best cubic poly fit for graph represented by log_ratex, psrn_x.
+  poly1 = numpy.polyfit(log_rate1, psnr1, 3)
+  poly2 = numpy.polyfit(log_rate2, psnr2, 3)
+
+  # Integration interval.
+  min_int = max([min(log_rate1), min(log_rate2)])
+  max_int = min([max(log_rate1), max(log_rate2)])
+
+  # Integrate poly1, and poly2.
+  p_int1 = numpy.polyint(poly1)
+  p_int2 = numpy.polyint(poly2)
+
+  # Calculate the integrated value over the interval we care about.
+  int1 = numpy.polyval(p_int1, max_int) - numpy.polyval(p_int1, min_int)
+  int2 = numpy.polyval(p_int2, max_int) - numpy.polyval(p_int2, min_int)
+
+  # Calculate the average improvement.
+  if max_int != min_int:
+    avg_diff = (int2 - int1) / (max_int - min_int)
+  else:
+    avg_diff = 0.0
+  return avg_diff
+
+
+def bdrate(unmodifiedStatistic, modifiedStatistic):
+  """
+  BJONTEGAARD    Bjontegaard metric calculation
+  Bjontegaard's metric allows to compute the average % saving in bitrate
+  between two rate-distortion curves [1].
+
+  rate1,psnr1 - RD points for curve 1
+  rate2,psnr2 - RD points for curve 2
+
+  adapted from code from: (c) 2010 Giuseppe Valenzise
+
+  """
+  # numpy plays games with its exported functions.
+  # pylint: disable=no-member
+  # pylint: disable=too-many-locals
+  # pylint: disable=bad-builtin
+  rate1 = np.array(map(float,unmodifiedStatistic["bitRate"]))
+  psnr1 = np.array(map(float,unmodifiedStatistic["PSNR"]))
+  rate2 = np.array(map(float,modifiedStatistic["bitRate"]))
+  psnr2 = np.array(map(float,modifiedStatistic["PSNR"]))
+
+  log_rate1 = map(math.log, rate1)
+  log_rate2 = map(math.log, rate2)
+
+  # Best cubic poly fit for graph represented by log_ratex, psrn_x.
+  poly1 = numpy.polyfit(psnr1, log_rate1, 3)
+  poly2 = numpy.polyfit(psnr2, log_rate2, 3)
+
+  # Integration interval.
+  min_int = max([min(psnr1), min(psnr2)])
+  max_int = min([max(psnr1), max(psnr2)])
+
+  # find integral
+  p_int1 = numpy.polyint(poly1)
+  p_int2 = numpy.polyint(poly2)
+
+  # Calculate the integrated value over the interval we care about.
+  int1 = numpy.polyval(p_int1, max_int) - numpy.polyval(p_int1, min_int)
+  int2 = numpy.polyval(p_int2, max_int) - numpy.polyval(p_int2, min_int)
+
+  # Calculate the average improvement.
+  avg_exp_diff = (int2 - int1) / (max_int - min_int)
+
+  # In really bad formed data the exponent can grow too large.
+  # clamp it.
+  if avg_exp_diff > 200:
+    avg_exp_diff = 200
+
+  # Convert to a percentage.
+  avg_diff = (math.exp(avg_exp_diff) - 1) * 100
+
+  return avg_diff
+
 
 def analyse_statistic(unmodifiedStatistic, modifiedStatistic):
   R1 = np.array(map(float,unmodifiedStatistic["bitRate"]))
@@ -88,6 +191,8 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
     print unmodifiedStatistic
     print modifiedStatistic
     analyse_statistic(unmodifiedStatistic, modifiedStatistic)
+    print "SNR", bdsnr(unmodifiedStatistic, modifiedStatistic)
+    print "RATE", bdrate(unmodifiedStatistic, modifiedStatistic)
 
 def wait_for_all_to_complete():
   for p in processes:
