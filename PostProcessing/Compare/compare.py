@@ -1,8 +1,11 @@
 from multiprocessing import cpu_count as cpu_count
+import numpy as np
+import Bjontegaard_metric.bjontegaard_metric as bjontegaard
 import subprocess
 import os
 import sys
 global encodingInfoSet
+
 
 #python encoding.py /home/adithyan/Innovation/RawVideo/ /home/adithyan/Innovation/MultiRate/PartitionReuse/ /home/adithyan/Innovation/aomenc
 
@@ -40,6 +43,17 @@ def extract_statistic(fileName):
   lastButOneLine = lastTwoLine.split('\x1b[K')[2]
   return {'PSNR':lastLine.split()[4], 'bitRate':lastButOneLine.split()[6][:-3],'encodingTime':lastButOneLine.split()[7]}
 
+
+
+def analyse_statistic(unmodifiedStatistic, modifiedStatistic):
+  R1 = np.array(map(float,unmodifiedStatistic["bitRate"]))
+  PSNR1 = np.array(map(float,unmodifiedStatistic["PSNR"]))
+  R2 = np.array(map(float,modifiedStatistic["bitRate"]))
+  PSNR2 = np.array(map(float,modifiedStatistic["PSNR"]))
+
+  print 'BD-PSNR: ', bjontegaard.BD_PSNR(R1, PSNR1, R2, PSNR2)
+  print 'BD-RATE: ', bjontegaard.BD_RATE(R1, PSNR1, R2, PSNR2)
+
 def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
   global encodingInfoSet
 
@@ -54,12 +68,18 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
       print video,"-",encodingInfo["name"],"-",reprBitRate,"kpbs"
 
       unmodifiedFile = os.path.join(videoDirectoryUnmodified,str(reprBitRate),"log.txt")
+      if not os.path.exists(unmodifiedFile):
+        print "Error: Unmodified file does not exist", unmodifiedFile
+        continue
       extractedStatistic = extract_statistic(unmodifiedFile)
       unmodifiedStatistic.setdefault("PSNR", []).append(extractedStatistic["PSNR"])
       unmodifiedStatistic.setdefault("bitRate", []).append(extractedStatistic["bitRate"])
       unmodifiedStatistic.setdefault("encodingTime", []).append(extractedStatistic["encodingTime"])
 
       modifiedFile = os.path.join(videoDirectoryModified,str(reprBitRate),"log.txt")
+      if not os.path.exists(modifiedFile):
+        print "Error: Modified file does not exist", modifiedFile
+        continue
       extractedStatistic = extract_statistic(modifiedFile)
       modifiedStatistic.setdefault("PSNR", []).append(extractedStatistic["PSNR"])
       modifiedStatistic.setdefault("bitRate", []).append(extractedStatistic["bitRate"])
@@ -67,6 +87,7 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
 
     print unmodifiedStatistic
     print modifiedStatistic
+    analyse_statistic(unmodifiedStatistic, modifiedStatistic)
 
 def wait_for_all_to_complete():
   for p in processes:
