@@ -55,15 +55,12 @@ def analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModi
 
   bdpsnr = bjontegaard.BD_PSNR(R1, PSNR1, R2, PSNR2)
   bdrate =  bjontegaard.BD_RATE(R1, PSNR1, R2, PSNR2)
-  print bdpsnr
-  print bdrate
 
   bdpsnr = int(bdpsnr * 1000)/ 1000.0
   bdrate = int(bdrate * 1000)/1000.0
 
   latexTable = [["BD-PSNR (dB)", bdpsnr],["BD-Rate (percent)", bdrate]]
-  print latexTable
-  with open(os.path.join(videoDirectoryModified,'bd.csv'), 'wb') as myfile:
+  with open(os.path.join(videoDirectoryModified,'RD.csv'), 'wb') as myfile:
       wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
       wr.writerows(latexTable)
 
@@ -74,8 +71,49 @@ def analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModi
   plt.title('RD performance')
   plt.legend([unmodifiedPlot, modifiedPlot], ['Reference encoder','Multirate encoder'])
   plt.grid(True)
+  plt.tight_layout()
   tikz_save(os.path.join(videoDirectoryModified,'RD.tex'))
   plt.clf()
+
+
+  encodingTimeUnmodified = np.array(map(float,['80105441', '81003760', '79504746', '84231478']))/3600000
+  encodingTimeModified = np.array(map(float,['40493325', '38134128', '38988584', '38569373']))/3600000
+  
+  print encodingTimeUnmodified
+  print encodingTimeModified 
+
+  # data to plot
+  n_groups = len(R1)
+   
+  # create plot
+  fig, ax = plt.subplots()
+  index = np.arange(n_groups)
+  bar_width = 0.35
+  opacity = 0.8   
+  rects1 = plt.bar(index, encodingTimeUnmodified, bar_width,
+                   alpha=opacity,
+                   color='b',
+                   label='Reference encoder')
+   
+  rects2 = plt.bar(index + bar_width, encodingTimeModified, bar_width,
+                   alpha=opacity,
+                   color='g',
+                   label='Multirate encoder')  
+  plt.xlabel('Bit Rates')
+  plt.ylabel('Encoding time (in hours)')
+  plt.title('Encoding time savings')
+  plt.xticks(index + bar_width, R1)
+  plt.legend()   
+  plt.tight_layout()
+  tikz_save(os.path.join(videoDirectoryModified,'encodingTime.tex'), )
+  plt.clf()
+
+  timeSavingsPercent = np.mean((encodingTimeUnmodified - encodingTimeModified)/encodingTimeUnmodified) * 100
+
+  latexTableNew = [["Encoding KPI", "Value"],["BD-PSNR (dB)", bdpsnr],["BD-Rate (percent)", bdrate], ["Time-Saving (percent)", timeSavingsPercent] ] 
+  with open(os.path.join(videoDirectoryModified,'encodingTime.csv'), 'wb') as myfile:
+      wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+      wr.writerows(latexTableNew)
 
 def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
   global encodingInfoSet
