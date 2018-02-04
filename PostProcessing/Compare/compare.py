@@ -17,7 +17,7 @@ import csv
 encodingInfoSet = [
                 {"name":"360p","width":640,"height":360,"reprBitRates":[500,650,800,1100] },
                 #{"name":"360p","width":640,"height":360,"reprBitRates":[500,650,800,1100,1400] },
-                {"name":"720p","width":1280,"height":720,"reprBitRates":[1500,1950,2400,3300,4200] },
+                #{"name":"720p","width":1280,"height":720,"reprBitRates":[1500,1950,2400,3300,4200] },
                 #{"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,3900,4800,6600,8400] }
                 #{"name":"2160p","width":4096,"height":2160,"reprBitRate":[10000,16000,28000] },
                   ]
@@ -64,8 +64,8 @@ def analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModi
       wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
       wr.writerows(latexTable)
 
-  unmodifiedPlot, = plt.plot(R1, PSNR1, 'o-')
-  modifiedPlot, = plt.plot(R2, PSNR2, 'o-')
+  unmodifiedPlot, = plt.plot(R1, PSNR1, 'bo-')
+  modifiedPlot, = plt.plot(R2, PSNR2, 'go-')
   plt.xlabel('Bitrate (kbits/s)')
   plt.ylabel('PSNR (dB)')
   plt.title('RD performance')
@@ -73,11 +73,12 @@ def analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModi
   plt.grid(True)
   plt.tight_layout()
   tikz_save(os.path.join(videoDirectoryModified,'RD.tex'))
+  plt.show()
   plt.clf()
 
 
-  encodingTimeUnmodified = np.array(map(float,['80105441', '81003760', '79504746', '84231478']))/3600000
-  encodingTimeModified = np.array(map(float,['40493325', '38134128', '38988584', '38569373']))/3600000
+  encodingTimeUnmodified = np.array(map(float,unmodifiedStatistic["encodingTime"]))/3600000
+  encodingTimeModified = np.array(map(float,unmodifiedStatistic["encodingTime"]))/3600000
   
   print encodingTimeUnmodified
   print encodingTimeModified 
