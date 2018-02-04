@@ -5,15 +5,17 @@ import subprocess
 import os
 import sys
 global encodingInfoSet
-
+import math
+import matplotlib.pyplot as plt
+from matplotlib2tikz import save as tikz_save
+import csv
 
 #python encoding.py /home/adithyan/Innovation/RawVideo/ /home/adithyan/Innovation/MultiRate/PartitionReuse/ /home/adithyan/Innovation/aomenc
 
 encodingInfoSet = [
                 {"name":"360p","width":640,"height":360,"reprBitRates":[500,650,800,1100] },
-                #{"name":"720p","width":1280,"height":720,"reprBitRates":[1500,2400,4200] },
                 #{"name":"360p","width":640,"height":360,"reprBitRates":[500,650,800,1100,1400] },
-                #{"name":"720p","width":1280,"height":720,"reprBitRates":[1500,1950,2400,3300,4200] },
+                {"name":"720p","width":1280,"height":720,"reprBitRates":[1500,1950,2400,3300,4200] },
                 #{"name":"1080p","width":1920,"height":1080,"reprBitRates":[3000,3900,4800,6600,8400] }
                 #{"name":"2160p","width":4096,"height":2160,"reprBitRate":[10000,16000,28000] },
                   ]
@@ -43,119 +45,39 @@ def extract_statistic(fileName):
   lastButOneLine = lastTwoLine.split('\x1b[K')[2]
   return {'PSNR':lastLine.split()[4], 'bitRate':lastButOneLine.split()[6][:-3],'encodingTime':lastButOneLine.split()[7]}
 
-
-def bdsnr(unmodifiedStatistic, modifiedStatistic):
-  """
-  BJONTEGAARD    Bjontegaard metric calculation
-  Bjontegaard's metric allows to compute the average gain in psnr between two
-  rate-distortion curves [1].
-  rate1,psnr1 - RD points for curve 1
-  rate2,psnr2 - RD points for curve 2
-
-  returns the calculated Bjontegaard metric 'dsnr'
-
-  code adapted from code written by : (c) 2010 Giuseppe Valenzise
-  http://www.mathworks.com/matlabcentral/fileexchange/27798-bjontegaard-metric/content/bjontegaard.m
-  """
-  # pylint: disable=too-many-locals
-  # numpy seems to do tricks with its exports.
-  # pylint: disable=no-member
-  # map() is recommended against.
-  # pylint: disable=bad-builtin
-  rate1 = np.array(map(float,unmodifiedStatistic["bitRate"]))
-  psnr1 = np.array(map(float,unmodifiedStatistic["PSNR"]))
-  rate2 = np.array(map(float,modifiedStatistic["bitRate"]))
-  psnr2 = np.array(map(float,modifiedStatistic["PSNR"]))
-
-  log_rate1 = map(math.log, rate1)
-  log_rate2 = map(math.log, rate2)
-
-  # Best cubic poly fit for graph represented by log_ratex, psrn_x.
-  poly1 = numpy.polyfit(log_rate1, psnr1, 3)
-  poly2 = numpy.polyfit(log_rate2, psnr2, 3)
-
-  # Integration interval.
-  min_int = max([min(log_rate1), min(log_rate2)])
-  max_int = min([max(log_rate1), max(log_rate2)])
-
-  # Integrate poly1, and poly2.
-  p_int1 = numpy.polyint(poly1)
-  p_int2 = numpy.polyint(poly2)
-
-  # Calculate the integrated value over the interval we care about.
-  int1 = numpy.polyval(p_int1, max_int) - numpy.polyval(p_int1, min_int)
-  int2 = numpy.polyval(p_int2, max_int) - numpy.polyval(p_int2, min_int)
-
-  # Calculate the average improvement.
-  if max_int != min_int:
-    avg_diff = (int2 - int1) / (max_int - min_int)
-  else:
-    avg_diff = 0.0
-  return avg_diff
-
-
-def bdrate(unmodifiedStatistic, modifiedStatistic):
-  """
-  BJONTEGAARD    Bjontegaard metric calculation
-  Bjontegaard's metric allows to compute the average % saving in bitrate
-  between two rate-distortion curves [1].
-
-  rate1,psnr1 - RD points for curve 1
-  rate2,psnr2 - RD points for curve 2
-
-  adapted from code from: (c) 2010 Giuseppe Valenzise
-
-  """
-  # numpy plays games with its exported functions.
-  # pylint: disable=no-member
-  # pylint: disable=too-many-locals
-  # pylint: disable=bad-builtin
-  rate1 = np.array(map(float,unmodifiedStatistic["bitRate"]))
-  psnr1 = np.array(map(float,unmodifiedStatistic["PSNR"]))
-  rate2 = np.array(map(float,modifiedStatistic["bitRate"]))
-  psnr2 = np.array(map(float,modifiedStatistic["PSNR"]))
-
-  log_rate1 = map(math.log, rate1)
-  log_rate2 = map(math.log, rate2)
-
-  # Best cubic poly fit for graph represented by log_ratex, psrn_x.
-  poly1 = numpy.polyfit(psnr1, log_rate1, 3)
-  poly2 = numpy.polyfit(psnr2, log_rate2, 3)
-
-  # Integration interval.
-  min_int = max([min(psnr1), min(psnr2)])
-  max_int = min([max(psnr1), max(psnr2)])
-
-  # find integral
-  p_int1 = numpy.polyint(poly1)
-  p_int2 = numpy.polyint(poly2)
-
-  # Calculate the integrated value over the interval we care about.
-  int1 = numpy.polyval(p_int1, max_int) - numpy.polyval(p_int1, min_int)
-  int2 = numpy.polyval(p_int2, max_int) - numpy.polyval(p_int2, min_int)
-
-  # Calculate the average improvement.
-  avg_exp_diff = (int2 - int1) / (max_int - min_int)
-
-  # In really bad formed data the exponent can grow too large.
-  # clamp it.
-  if avg_exp_diff > 200:
-    avg_exp_diff = 200
-
-  # Convert to a percentage.
-  avg_diff = (math.exp(avg_exp_diff) - 1) * 100
-
-  return avg_diff
-
-
-def analyse_statistic(unmodifiedStatistic, modifiedStatistic):
-  R1 = np.array(map(float,unmodifiedStatistic["bitRate"]))
+def analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModified):
+  R1 = np.array(map(float,unmodifiedStatistic["bitRate"]))/1000
   PSNR1 = np.array(map(float,unmodifiedStatistic["PSNR"]))
-  R2 = np.array(map(float,modifiedStatistic["bitRate"]))
+  R2 = np.array(map(float,modifiedStatistic["bitRate"]))/1000
   PSNR2 = np.array(map(float,modifiedStatistic["PSNR"]))
 
-  print 'BD-PSNR: ', bjontegaard.BD_PSNR(R1, PSNR1, R2, PSNR2)
-  print 'BD-RATE: ', bjontegaard.BD_RATE(R1, PSNR1, R2, PSNR2)
+  PSNR1 = np.array(map(float,['29.037', '29.603', '30.165', '31.106']))
+  R1 = np.array(map(float,['1115430', '1334499', '1524787', '1932672']))/1000
+  PSNR2 = np.array(map(float,['28.850', '29.476', '30.046', '30.943']))
+  R2 = np.array(map(float,['1114940', '1358192', '1560467', '1961494']))/1000
+
+  bdpsnr = bjontegaard.BD_PSNR(R1, PSNR1, R2, PSNR2)
+  bdrate =  bjontegaard.BD_RATE(R1, PSNR1, R2, PSNR2)
+  print bdpsnr
+  print bdrate
+
+  bdpsnr = int(bdpsnr * 1000)/ 1000.0
+  bdrate = int(bdrate * 1000)/1000.0
+
+  latexTable = [["BD-PSNR (dB)", bdpsnr],["BD-Rate (percent)", bdrate]]
+  print latexTable
+  with open(os.path.join(videoDirectoryModified,'bd.csv'), 'wb') as myfile:
+      wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+      wr.writerows(latexTable)
+
+  unmodifiedPlot, = plt.plot(R1, PSNR1, 'o-')
+  modifiedPlot, = plt.plot(R2, PSNR2, 'o-')
+  plt.xlabel('Bitrate (kbits/s)')
+  plt.ylabel('PSNR (dB)')
+  plt.title('RD performance')
+  plt.legend([unmodifiedPlot, modifiedPlot], ['Reference encoder','Multirate encoder'])
+  plt.grid(True)
+  tikz_save(os.path.join(videoDirectoryModified,'RD.tex'))
 
 def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
   global encodingInfoSet
@@ -166,6 +88,7 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
 
     unmodifiedStatistic = {}
     modifiedStatistic = {}
+    errorFlag = 0
 
     for reprBitRate in encodingInfo["reprBitRates"]:
       print video,"-",encodingInfo["name"],"-",reprBitRate,"kpbs"
@@ -173,6 +96,7 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
       unmodifiedFile = os.path.join(videoDirectoryUnmodified,str(reprBitRate),"log.txt")
       if not os.path.exists(unmodifiedFile):
         print "Error: Unmodified file does not exist", unmodifiedFile
+        errorFlag = 1
         continue
       extractedStatistic = extract_statistic(unmodifiedFile)
       unmodifiedStatistic.setdefault("PSNR", []).append(extractedStatistic["PSNR"])
@@ -182,6 +106,7 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
       modifiedFile = os.path.join(videoDirectoryModified,str(reprBitRate),"log.txt")
       if not os.path.exists(modifiedFile):
         print "Error: Modified file does not exist", modifiedFile
+        errorFlag = 1
         continue
       extractedStatistic = extract_statistic(modifiedFile)
       modifiedStatistic.setdefault("PSNR", []).append(extractedStatistic["PSNR"])
@@ -190,10 +115,10 @@ def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
 
     print unmodifiedStatistic
     print modifiedStatistic
-    analyse_statistic(unmodifiedStatistic, modifiedStatistic)
-    print "SNR", bdsnr(unmodifiedStatistic, modifiedStatistic)
-    print "RATE", bdrate(unmodifiedStatistic, modifiedStatistic)
-
+    if not errorFlag:
+      print "Analysing statistic."
+      analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModified)
+ 
 def wait_for_all_to_complete():
   for p in processes:
     if p.poll() is None:
