@@ -6,6 +6,8 @@ import os
 import sys
 global encodingInfoSet
 import math
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib2tikz import save as tikz_save
 import csv
@@ -51,11 +53,6 @@ def analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModi
   R2 = np.array(map(float,modifiedStatistic["bitRate"]))/1000
   PSNR2 = np.array(map(float,modifiedStatistic["PSNR"]))
 
-  PSNR1 = np.array(map(float,['29.037', '29.603', '30.165', '31.106']))
-  R1 = np.array(map(float,['1115430', '1334499', '1524787', '1932672']))/1000
-  PSNR2 = np.array(map(float,['28.850', '29.476', '30.046', '30.943']))
-  R2 = np.array(map(float,['1114940', '1358192', '1560467', '1961494']))/1000
-
   bdpsnr = bjontegaard.BD_PSNR(R1, PSNR1, R2, PSNR2)
   bdrate =  bjontegaard.BD_RATE(R1, PSNR1, R2, PSNR2)
   print bdpsnr
@@ -78,6 +75,7 @@ def analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModi
   plt.legend([unmodifiedPlot, modifiedPlot], ['Reference encoder','Multirate encoder'])
   plt.grid(True)
   tikz_save(os.path.join(videoDirectoryModified,'RD.tex'))
+  plt.clf()
 
 def compare(subDirectoryFullUnmodified,  subDirectoryFullModified, video):
   global encodingInfoSet
