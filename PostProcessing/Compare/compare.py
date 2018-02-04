@@ -78,7 +78,7 @@ def analyse_statistic(unmodifiedStatistic, modifiedStatistic, videoDirectoryModi
 
 
   encodingTimeUnmodified = np.array(map(float,unmodifiedStatistic["encodingTime"]))/3600000
-  encodingTimeModified = np.array(map(float,unmodifiedStatistic["encodingTime"]))/3600000
+  encodingTimeModified = np.array(map(float,modifiedStatistic["encodingTime"]))/3600000
   
   print encodingTimeUnmodified
   print encodingTimeModified 
